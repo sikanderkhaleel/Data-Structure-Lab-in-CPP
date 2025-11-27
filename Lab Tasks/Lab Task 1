@@ -1,0 +1,134 @@
+#include <iostream>
+using namespace std;
+/* run this program using the console pauser or add your own getch, system("pause") or input loop */
+class queue{
+	private:
+		int* arr;
+		int capicity;
+		int frontidx;
+		int rearidx;
+		int currentsize;
+		
+		void resize()
+		{
+		
+		int newCapicity = capicity*2;
+		int* newArr = new int[newCapicity];
+		for(int i=0; i < currentsize; i++)
+		{
+			newArr[i] = arr[(frontidx + i) % capicity];
+			
+		}
+		delete []arr;
+		arr = newArr;
+		capicity = newCapicity;
+		frontidx = 0;
+		rearidx = currentsize;
+			
+		}
+	public:
+		queue(int initialCapicity = 4)
+		{
+			capicity = initialCapicity;
+			arr = new int[capicity];
+			frontidx = 0;
+			rearidx = 0;
+			currentsize = 0;
+			
+			
+		}
+		~queue()
+		{
+			delete []arr;
+		}
+		bool isEmpty()
+		{
+			if (currentsize == 0)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		int size()
+		{
+			return currentsize;	
+		}
+		
+		void enqueue(int value)
+		{
+			if(currentsize == capicity)
+			{
+				resize();
+			}
+			arr[rearidx] = value;
+			rearidx = (rearidx + 1) % capicity;
+			currentsize++;
+			
+		}
+		void dequeue()
+		{
+			if(isEmpty())
+			{
+				cout << "The queue is empty" << endl;
+				return;
+			}
+			frontidx = (frontidx + 1) % capicity;
+			currentsize--;
+			
+		}
+		int front()
+		{
+				if(isEmpty())
+			{
+				cout << "The queue is empty" << endl;
+				return -1;
+			}
+			return arr[frontidx];
+			
+			
+		}
+		void print()
+		{
+			cout << "\nQueue elements...";
+			for(int i = 0; i < currentsize; i++)
+			{
+				cout << " " << arr[i];
+				
+			
+			}
+			cout "\n";
+			
+		}
+		
+		
+		
+};
+
+int main(int argc, char** argv) {
+	
+	queue q;
+	q.enqueue(10);
+	q.enqueue(20);
+	q.enqueue(30);
+	q.enqueue(40);
+	cout << "Front elements: " << q.front() << "\n";
+	cout << "Dequeue 2 elements.." << endl;
+	q.dequeue();
+	q.dequeue();
+	cout << "enqueue 2 more elements..."<< endl;
+	q.enqueue(60);
+	q.enqueue(70);
+	q.print();
+	cout << "Dequeue all elements: \n";
+	while (!q.isEmpty())
+	{
+		cout << "Front: " <, q.front() << " -> Dequeued\n ";
+		q.dequeue();
+	}
+	q.dequeue();
+	return 0;
+
+}
