@@ -1,0 +1,117 @@
+#include <iostream>
+using namespace std;
+
+class queue{
+private:
+    int* arr;
+    int capicity;
+    int frontidx;
+    int rearidx;
+    int currentsize;
+
+    void resize() {
+        int newCapicity = capicity * 2;
+        int* newArr = new int[newCapicity];
+        for (int i = 0; i < currentsize; i++) {
+            newArr[i] = arr[(frontidx + i) % capicity];
+        }
+        delete[] arr;
+        arr = newArr;
+        capicity = newCapicity;
+        frontidx = 0;
+        rearidx = currentsize;
+    }
+
+public:
+    queue(int initialCapicity = 4) {
+        capicity = initialCapicity;
+        arr = new int[capicity];
+        frontidx = 0;
+        rearidx = 0;
+        currentsize = 0;
+    }
+
+    ~queue() {
+        delete[] arr;
+    }
+
+    bool isEmpty() {
+        return currentsize == 0;
+    }
+
+    int size() {
+        return currentsize;
+    }
+
+    void enqueue(int value) {
+        if (currentsize == capicity) {
+            resize();
+        }
+        arr[rearidx] = value;
+        rearidx = (rearidx + 1) % capicity;
+        currentsize++;
+    }
+
+    void dequeue() {
+        if (isEmpty()) {
+            cout << "Queue empty!" << endl;
+            return;
+        }
+        frontidx = (frontidx + 1) % capicity;
+        currentsize--;
+    }
+
+    int front() {
+        if (isEmpty()) {
+            cout << "Queue empty!" << endl;
+            return -1;
+        }
+        return arr[frontidx];
+    }
+};
+
+int main() {
+    queue magazine(20);
+
+    int magazineCapacity = 20;
+    int extraBullets = 100;
+
+    for (int i = 0; i < magazineCapacity; i++) {
+        magazine.enqueue(1);
+    }
+
+    int totalSeconds = 0;
+    int totalFired = 0;
+
+    while (!magazine.isEmpty() || extraBullets > 0) {
+
+        if (magazine.isEmpty() && extraBullets > 0) {
+            int bulletsToLoad = min(magazineCapacity, extraBullets);
+            for (int i = 0; i < bulletsToLoad; i++)
+                magazine.enqueue(1);
+            extraBullets = bulletsToLoad - 1;
+        }
+
+        if (magazine.isEmpty()) break;
+
+
+        magazine.dequeue();
+        totalSeconds += 1;
+        totalFired++;
+
+        cout << "Fired bullet " << totalFired  << "  Time = " << totalSeconds << "s" << endl;
+
+
+        if (extraBullets > 0) {
+            magazine.enqueue(1);
+            extraBullets--;
+            totalSeconds += 1;
+        }
+    }
+
+    cout << "\n=== Simulation Finished ===\n";
+    cout << "Total bullets fired: " << totalFired << endl;
+    cout << "Total time (seconds): " << totalSeconds << endl;
+
+    return 0;
+}
