@@ -1,1 +1,714 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <iomanip>
+using namespace std;
 
+struct StudentNode {
+    int studentID;
+    string studentName;
+    string departmentCode;
+    int semesterNumber;
+    double studentCGPA;
+    int completedCreditHours;
+    int enrollmentYear;
+    StudentNode* nextStudent;
+    
+    StudentNode() {
+        studentID = 0;
+        studentName = "";
+        departmentCode = "";
+        semesterNumber = 0;
+        studentCGPA = 0.0;
+        completedCreditHours = 0;
+        enrollmentYear = 0;
+        nextStudent = 0;
+    }
+    
+    StudentNode(int id, string name, string dept, int sem, double gpa, int credits, int year) {
+        studentID = id;
+        studentName = name;
+        departmentCode = dept;
+        semesterNumber = sem;
+        studentCGPA = gpa;
+        completedCreditHours = credits;
+        enrollmentYear = year;
+        nextStudent = 0;
+    }
+};
+
+class StudentDatabase {
+private:
+    StudentNode* databaseHead;
+
+
+    int totalStudents;
+    
+    StudentNode* combineByGPA(StudentNode* leftSide, StudentNode* rightSide) {
+        if (!leftSide) return rightSide;
+        if (!rightSide) return leftSide;
+        
+        if (leftSide->studentCGPA > rightSide->studentCGPA || (leftSide->studentCGPA == rightSide->studentCGPA && leftSide->completedCreditHours > rightSide->completedCreditHours)) {
+            leftSide->nextStudent = combineByGPA(leftSide->nextStudent, rightSide);
+            return leftSide;
+        } else {
+            rightSide->nextStudent = combineByGPA(leftSide, rightSide->nextStudent);
+            return rightSide;
+        }
+    }
+    
+    StudentNode* combineByYear(StudentNode* leftSide, StudentNode* rightSide) {
+        if (!leftSide) return rightSide;
+        if (!rightSide) return leftSide;
+        
+        if (leftSide->enrollmentYear < rightSide->enrollmentYear ||
+            (leftSide->enrollmentYear == rightSide->enrollmentYear && 
+             leftSide->studentID < rightSide->studentID)) {
+            leftSide->nextStudent = combineByYear(leftSide->nextStudent, rightSide);
+            return leftSide;
+        } else {
+            rightSide->nextStudent = combineByYear(leftSide, rightSide->nextStudent);
+            return rightSide;
+        }
+    }
+    
+    StudentNode* combineByDepartment(StudentNode* leftSide, StudentNode* rightSide) {
+        if (!leftSide) return rightSide;
+        if (!rightSide) return leftSide;
+        
+        if (leftSide->departmentCode < rightSide->departmentCode ||
+            (leftSide->departmentCode == rightSide->departmentCode && 
+             leftSide->semesterNumber < rightSide->semesterNumber) ||
+            (leftSide->departmentCode == rightSide->departmentCode && 
+             leftSide->semesterNumber == rightSide->semesterNumber && 
+             leftSide->studentCGPA > rightSide->studentCGPA)) {
+            leftSide->nextStudent = combineByDepartment(leftSide->nextStudent, rightSide);
+            return leftSide;
+        } else {
+            rightSide->nextStudent = combineByDepartment(leftSide, rightSide->nextStudent);
+            return rightSide;
+        }
+    }
+    
+    StudentNode* findMiddleNode(StudentNode* startNode) {
+        if (!startNode) return startNode;
+        
+        StudentNode* slowPointer = startNode;
+        StudentNode* fastPointer = startNode->nextStudent;
+        
+        while (fastPointer && fastPointer->nextStudent) {
+            slowPointer = slowPointer->nextStudent;
+            fastPointer = fastPointer->nextStudent->nextStudent;
+        }
+        
+        return slowPointer;
+    }
+    
+    StudentNode* mergeSortList(StudentNode* startNode, int sortType) {
+        if (!startNode || !startNode->nextStudent) return startNode;
+        
+        StudentNode* middleNode = findMiddleNode(startNode);
+        StudentNode* nextToMiddle = middleNode->nextStudent;
+        middleNode->nextStudent = 0;
+        
+        StudentNode* leftPart = mergeSortList(startNode, sortType);
+        StudentNode* rightPart = mergeSortList(nextToMiddle, sortType);
+        
+        if (sortType == 1) return combineByGPA(leftPart, rightPart);
+        if (sortType == 2) return combineByYear(leftPart, rightPart);
+        if (sortType == 3) return combineByDepartment(leftPart, rightPart);
+        return combineByGPA(leftPart, rightPart);
+    }
+    
+    StudentNode* sortNamesAlphabetically(StudentNode* startNode) {
+        if (!startNode || !startNode->nextStudent) return startNode;
+        
+        StudentNode* sortedList = 0;
+        StudentNode* currentNode = startNode;
+        
+        while (currentNode) {
+            StudentNode* nextNode = currentNode->nextStudent;
+            
+            if (!sortedList || sortedList->studentName > currentNode->studentName) {
+                currentNode->nextStudent = sortedList;
+                sortedList = currentNode;
+            } else {
+                StudentNode* tempNode = sortedList;
+                while (tempNode->nextStudent && tempNode->nextStudent->studentName < currentNode->studentName) {
+                    tempNode = tempNode->nextStudent;
+                }
+                currentNode->nextStudent = tempNode->nextStudent;
+                tempNode->nextStudent = currentNode;
+            }
+            currentNode = nextNode;
+        }
+        return sortedList;
+    }
+    
+    StudentNode* duplicateStudentList(StudentNode* originalHead) {
+        if (!originalHead) return 0;
+        
+        StudentNode* newListHead = new StudentNode(originalHead->studentID, originalHead->studentName,
+                                                   originalHead->departmentCode, originalHead->semesterNumber,
+                                                   originalHead->studentCGPA, originalHead->completedCreditHours,
+                                                   originalHead->enrollmentYear);
+        
+        StudentNode* currentNew = newListHead;
+        StudentNode* currentOriginal = originalHead->nextStudent;
+        
+        while (currentOriginal) {
+            currentNew->nextStudent = new StudentNode(currentOriginal->studentID, currentOriginal->studentName,
+                                                      currentOriginal->departmentCode, currentOriginal->semesterNumber,
+                                                      currentOriginal->studentCGPA, currentOriginal->completedCreditHours,
+                                                      currentOriginal->enrollmentYear);
+            currentNew = currentNew->nextStudent;
+            currentOriginal = currentOriginal->nextStudent;
+        }
+        
+        return newListHead;
+    }
+    
+    void removeEntireList(StudentNode* listHead) {
+        while (listHead) {
+            StudentNode* nextNode = listHead->nextStudent;
+            delete listHead;
+            listHead = nextNode;
+        }
+    }
+    
+public:
+    StudentDatabase() {
+        databaseHead = 0;
+        totalStudents = 0;
+    }
+    
+    ~StudentDatabase() {
+        clearDatabase();
+    }
+    
+    void clearDatabase() {
+        StudentNode* currentNode = databaseHead;
+        while (currentNode) {
+            StudentNode* nextNode = currentNode->nextStudent;
+            delete currentNode;
+            currentNode = nextNode;
+        }
+        databaseHead = 0;
+        totalStudents = 0;
+    }
+    
+    void loadStudentData(string fileName) {
+        ifstream inputFile(fileName);
+        if (!inputFile.is_open()) {
+            cout << "Error opening file: " << fileName << endl;
+            return;
+        }
+        
+        clearDatabase();
+        
+        string firstLine;
+        getline(inputFile, firstLine);
+        
+        int studentID, semesterNum, credits, year;
+        string studentName, department;
+        double cgpa;
+        
+        while (inputFile >> studentID) {
+            inputFile.ignore();
+            getline(inputFile, studentName, ' ');
+            inputFile >> department >> semesterNum >> cgpa >> credits >> year;
+            
+            StudentNode* newStudent = new StudentNode(studentID, studentName, department, 
+                                                     semesterNum, cgpa, credits, year);
+            
+            if (!databaseHead) {
+                databaseHead = newStudent;
+            } else {
+                StudentNode* current = databaseHead;
+                while (current->nextStudent) {
+                    current = current->nextStudent;
+                }
+                current->nextStudent = newStudent;
+            }
+            totalStudents++;
+        }
+        
+        inputFile.close();
+        cout << "Loaded " << totalStudents << " student records from file." << endl;
+    }
+    
+    int getTotalStudents() {
+        return totalStudents;
+    }
+    
+    void createGPAReport(string fileName) {
+        StudentNode* temporaryList = duplicateStudentList(databaseHead);
+        temporaryList = mergeSortList(temporaryList, 1);
+        
+        ofstream outputFile(fileName);
+        if (!outputFile.is_open()) {
+            cout << "Error creating file: " << fileName << endl;
+            removeEntireList(temporaryList);
+            return;
+        }
+        
+        outputFile << "==========================================================\n";
+        outputFile << "              STUDENTS RANKED BY CGPA\n";
+        outputFile << "==========================================================\n";
+        outputFile << left << setw(6) << "Rank" 
+                  << setw(10) << "ID" 
+                  << setw(25) << "Name" 
+                  << setw(8) << "Dept" 
+                  << setw(6) << "Sem" 
+                  << setw(8) << "CGPA" 
+                  << setw(12) << "Credits" 
+                  << setw(8) << "Year" << endl;
+        outputFile << string(83, '-') << endl;
+        
+        StudentNode* current = temporaryList;
+        int rankPosition = 1;
+        while (current) {
+            string displayName = current->studentName;
+            if (displayName.length() > 24) {
+                displayName = displayName.substr(0, 23) + ".";
+            }
+            
+            outputFile << left << setw(6) << rankPosition++
+                      << setw(10) << current->studentID
+                      << setw(25) << displayName
+                      << setw(8) << current->departmentCode
+                      << setw(6) << current->semesterNumber
+                      << setw(8) << fixed << setprecision(2) << current->studentCGPA
+                      << setw(12) << current->completedCreditHours
+                      << setw(8) << current->enrollmentYear << endl;
+            current = current->nextStudent;
+        }
+        
+        outputFile << "==========================================================\n";
+        outputFile << "Total Students: " << totalStudents << endl;
+        outputFile.close();
+        
+        removeEntireList(temporaryList);
+        cout << "Created GPA ranking report: " << fileName << endl;
+    }
+    
+    void createYearReport(string fileName) {
+        StudentNode* temporaryList = duplicateStudentList(databaseHead);
+        temporaryList = mergeSortList(temporaryList, 2);
+        
+        ofstream outputFile(fileName);
+        if (!outputFile.is_open()) {
+            cout << "Error creating file: " << fileName << endl;
+            removeEntireList(temporaryList);
+            return;
+        }
+        
+        outputFile << "==========================================================\n";
+        outputFile << "          STUDENTS SORTED BY ENROLLMENT YEAR\n";
+        outputFile << "==========================================================\n";
+        
+        StudentNode* current = temporaryList;
+        int currentYearValue = -1;
+        
+        while (current) {
+            if (current->enrollmentYear != currentYearValue) {
+                if (currentYearValue != -1) {
+                    StudentNode* yearStart = temporaryList;
+                    double gradeSum = 0.0;
+                    int studentCount = 0;
+                    
+                    StudentNode* temp = yearStart;
+                    while (temp != current) {
+                        if (temp->enrollmentYear == currentYearValue) {
+                            gradeSum += temp->studentCGPA;
+                            studentCount++;
+                        }
+                        temp = temp->nextStudent;
+                    }
+                    
+                    if (studentCount > 0) {
+                        outputFile << "\n  Average CGPA for " << currentYearValue << ": " 
+                                  << fixed << setprecision(2) << (gradeSum / studentCount) << "\n";
+                    }
+                    outputFile << string(68, '-') << endl;
+                }
+                
+                currentYearValue = current->enrollmentYear;
+                outputFile << "\nENROLLMENT YEAR: " << currentYearValue << "\n";
+                outputFile << string(68, '-') << endl;
+                outputFile << left << setw(10) << "ID" 
+                          << setw(25) << "Name" 
+                          << setw(8) << "Dept" 
+                          << setw(6) << "Sem" 
+                          << setw(8) << "CGPA" 
+                          << setw(12) << "Credits" << endl;
+            }
+            
+            string displayName = current->studentName;
+            if (displayName.length() > 24) {
+                displayName = displayName.substr(0, 23) + ".";
+            }
+            
+            outputFile << left << setw(10) << current->studentID
+                      << setw(25) << displayName
+                      << setw(8) << current->departmentCode
+                      << setw(6) << current->semesterNumber
+                      << setw(8) << fixed << setprecision(2) << current->studentCGPA
+                      << setw(12) << current->completedCreditHours << endl;
+            
+            current = current->nextStudent;
+        }
+        
+        if (currentYearValue != -1) {
+            StudentNode* temp = temporaryList;
+            double gradeSum = 0.0;
+            int studentCount = 0;
+            
+            while (temp) {
+                if (temp->enrollmentYear == currentYearValue) {
+                    gradeSum += temp->studentCGPA;
+                    studentCount++;
+                }
+                temp = temp->nextStudent;
+            }
+            
+            if (studentCount > 0) {
+                outputFile << "\n  Average CGPA for " << currentYearValue << ": " 
+                          << fixed << setprecision(2) << (gradeSum / studentCount) << "\n";
+            }
+        }
+        
+        outputFile << "\n==========================================================\n";
+        outputFile << "Total Students: " << totalStudents << endl;
+        outputFile.close();
+        
+        removeEntireList(temporaryList);
+        cout << "Created enrollment year report: " << fileName << endl;
+    }
+    
+    void createDepartmentReport(string fileName) {
+        StudentNode* temporaryList = duplicateStudentList(databaseHead);
+        temporaryList = mergeSortList(temporaryList, 3);
+        
+        ofstream outputFile(fileName);
+        if (!outputFile.is_open()) {
+            cout << "Error creating file: " << fileName << endl;
+            removeEntireList(temporaryList);
+            return;
+        }
+        
+        outputFile << "==========================================================\n";
+        outputFile << "               DEPARTMENT ANALYSIS REPORT\n";
+        outputFile << "==========================================================\n";
+        
+        StudentNode* current = temporaryList;
+        string currentDepartment = "";
+        
+        while (current) {
+            if (current->departmentCode != currentDepartment) {
+                if (currentDepartment != "") {
+                    StudentNode* temp = temporaryList;
+                    double gradeSum = 0.0;
+                    double maxGrade = 0.0;
+                    double minGrade = 4.0;
+                    int creditSum = 0;
+                    int deptCount = 0;
+                    
+                    while (temp != current) {
+                        if (temp->departmentCode == currentDepartment) {
+                            gradeSum += temp->studentCGPA;
+                            creditSum += temp->completedCreditHours;
+                            if (temp->studentCGPA > maxGrade) maxGrade = temp->studentCGPA;
+                            if (temp->studentCGPA < minGrade) minGrade = temp->studentCGPA;
+                            deptCount++;
+                        }
+                        temp = temp->nextStudent;
+                    }
+                    
+                    if (deptCount > 0) {
+                        outputFile << "\n  Department Statistics:\n";
+                        outputFile << "  - Total Students: " << deptCount << "\n";
+                        outputFile << "  - Average CGPA: " << fixed << setprecision(2) << (gradeSum / deptCount) << "\n";
+                        outputFile << "  - Highest CGPA: " << fixed << setprecision(2) << maxGrade << "\n";
+                        outputFile << "  - Lowest CGPA: " << fixed << setprecision(2) << minGrade << "\n";
+                        outputFile << "  - Average Credit Hours: " << (creditSum / deptCount) << "\n";
+                    }
+                    outputFile << "==========================================================\n";
+                }
+                
+                currentDepartment = current->departmentCode;
+                outputFile << "\nDEPARTMENT: " << currentDepartment << "\n";
+                outputFile << string(68, '-') << endl;
+                outputFile << left << setw(10) << "ID" 
+                          << setw(25) << "Name" 
+                          << setw(6) << "Sem" 
+                          << setw(8) << "CGPA" 
+                          << setw(12) << "Credits" 
+                          << setw(8) << "Year" << endl;
+            }
+            
+            string displayName = current->studentName;
+            if (displayName.length() > 24) {
+                displayName = displayName.substr(0, 23) + ".";
+            }
+            
+            outputFile << left << setw(10) << current->studentID
+                      << setw(25) << displayName
+                      << setw(6) << current->semesterNumber
+                      << setw(8) << fixed << setprecision(2) << current->studentCGPA
+                      << setw(12) << current->completedCreditHours
+                      << setw(8) << current->enrollmentYear << endl;
+            
+            current = current->nextStudent;
+        }
+        
+        if (currentDepartment != "") {
+            StudentNode* temp = temporaryList;
+            double gradeSum = 0.0;
+            double maxGrade = 0.0;
+            double minGrade = 4.0;
+            int creditSum = 0;
+            int deptCount = 0;
+            
+            while (temp) {
+                if (temp->departmentCode == currentDepartment) {
+                    gradeSum += temp->studentCGPA;
+                    creditSum += temp->completedCreditHours;
+                    if (temp->studentCGPA > maxGrade) maxGrade = temp->studentCGPA;
+                    if (temp->studentCGPA < minGrade) minGrade = temp->studentCGPA;
+                    deptCount++;
+                }
+                temp = temp->nextStudent;
+            }
+            
+            if (deptCount > 0) {
+                outputFile << "\n  Department Statistics:\n";
+                outputFile << "  - Total Students: " << deptCount << "\n";
+                outputFile << "  - Average CGPA: " << fixed << setprecision(2) << (gradeSum / deptCount) << "\n";
+                outputFile << "  - Highest CGPA: " << fixed << setprecision(2) << maxGrade << "\n";
+                outputFile << "  - Lowest CGPA: " << fixed << setprecision(2) << minGrade << "\n";
+                outputFile << "  - Average Credit Hours: " << (creditSum / deptCount) << "\n";
+            }
+        }
+        
+        outputFile << "\n==========================================================\n";
+        outputFile << "Total Students: " << totalStudents << endl;
+        outputFile.close();
+        
+        removeEntireList(temporaryList);
+        cout << "Created department analysis report: " << fileName << endl;
+    }
+    
+    void createTierReport(string fileName) {
+        StudentNode* eliteStudents = 0;
+        StudentNode* highAchievers = 0;
+        StudentNode* goodStanding = 0;
+        StudentNode* satisfactory = 0;
+        StudentNode* needsImprovement = 0;
+        
+        StudentNode* eliteEnd = 0;
+        StudentNode* highAchieversEnd = 0;
+        StudentNode* goodStandingEnd = 0;
+        StudentNode* satisfactoryEnd = 0;
+        StudentNode* needsImprovementEnd = 0;
+        
+        int eliteCount = 0;
+        int highCount = 0;
+        int goodCount = 0;
+        int satisfactoryCount = 0;
+        int needsImprovementCount = 0;
+        
+        StudentNode* current = databaseHead;
+        while (current) {
+            StudentNode* newNode = new StudentNode(current->studentID, current->studentName,
+                                                  current->departmentCode, current->semesterNumber,
+                                                  current->studentCGPA, current->completedCreditHours,
+                                                  current->enrollmentYear);
+            
+            if (current->studentCGPA >= 3.70) {
+                if (!eliteStudents) {
+                    eliteStudents = newNode;
+                    eliteEnd = newNode;
+                } else {
+                    eliteEnd->nextStudent = newNode;
+                    eliteEnd = newNode;
+                }
+                eliteCount++;
+            } else if (current->studentCGPA >= 3.30) {
+                if (!highAchievers) {
+                    highAchievers = newNode;
+                    highAchieversEnd = newNode;
+                } else {
+                    highAchieversEnd->nextStudent = newNode;
+                    highAchieversEnd = newNode;
+                }
+                highCount++;
+            } else if (current->studentCGPA >= 3.00) {
+                if (!goodStanding) {
+                    goodStanding = newNode;
+                    goodStandingEnd = newNode;
+                } else {
+                    goodStandingEnd->nextStudent = newNode;
+                    goodStandingEnd = newNode;
+                }
+                goodCount++;
+            } else if (current->studentCGPA >= 2.50) {
+                if (!satisfactory) {
+                    satisfactory = newNode;
+                    satisfactoryEnd = newNode;
+                } else {
+                    satisfactoryEnd->nextStudent = newNode;
+                    satisfactoryEnd = newNode;
+                }
+                satisfactoryCount++;
+            } else {
+                if (!needsImprovement) {
+                    needsImprovement = newNode;
+                    needsImprovementEnd = newNode;
+                } else {
+                    needsImprovementEnd->nextStudent = newNode;
+                    needsImprovementEnd = newNode;
+                }
+                needsImprovementCount++;
+            }
+            
+            current = current->nextStudent;
+        }
+        
+        eliteStudents = sortNamesAlphabetically(eliteStudents);
+        highAchievers = sortNamesAlphabetically(highAchievers);
+        goodStanding = sortNamesAlphabetically(goodStanding);
+        satisfactory = sortNamesAlphabetically(satisfactory);
+        needsImprovement = sortNamesAlphabetically(needsImprovement);
+        
+        ofstream outputFile(fileName);
+        if (!outputFile.is_open()) {
+            cout << "Error creating file: " << fileName << endl;
+            
+            removeEntireList(eliteStudents);
+            removeEntireList(highAchievers);
+            removeEntireList(goodStanding);
+            removeEntireList(satisfactory);
+            removeEntireList(needsImprovement);
+            return;
+        }
+        
+        outputFile << "==========================================================\n";
+        outputFile << "             PERFORMANCE TIERS ANALYSIS\n";
+        outputFile << "==========================================================\n";
+        
+        auto writeTierSection = [&outputFile, totalStudents](StudentNode* tierHead, string tierName, 
+                                                           int tierCount, string gradeRange) {
+            outputFile << "\n" << tierName << " (CGPA " << gradeRange << ")\n";
+            outputFile << "Count: " << tierCount 
+                      << " (" << fixed << setprecision(1) 
+                      << (tierCount * 100.0 / totalStudents) << "%)\n";
+            outputFile << string(68, '-') << endl;
+            
+            if (!tierHead) {
+                outputFile << "No students in this tier\n";
+                return;
+            }
+            
+            outputFile << left << setw(10) << "ID" 
+                      << setw(25) << "Name" 
+                      << setw(8) << "Dept" 
+                      << setw(6) << "Sem" 
+                      << setw(8) << "CGPA" 
+                      << setw(12) << "Credits" << endl;
+            
+            StudentNode* current = tierHead;
+            while (current) {
+                string displayName = current->studentName;
+                if (displayName.length() > 24) {
+                    displayName = displayName.substr(0, 23) + ".";
+                }
+                
+                outputFile << left << setw(10) << current->studentID
+                          << setw(25) << displayName
+                          << setw(8) << current->departmentCode
+                          << setw(6) << current->semesterNumber
+                          << setw(8) << fixed << setprecision(2) << current->studentCGPA
+                          << setw(12) << current->completedCreditHours << endl;
+                current = current->nextStudent;
+            }
+        };
+        
+        writeTierSection(eliteStudents, "ELITE TIER", eliteCount, "≥ 3.70");
+        writeTierSection(highAchievers, "HIGH ACHIEVERS", highCount, "3.30 - 3.69");
+        writeTierSection(goodStanding, "GOOD STANDING", goodCount, "3.00 - 3.29");
+        writeTierSection(satisfactory, "SATISFACTORY", satisfactoryCount, "2.50 - 2.99");
+        writeTierSection(needsImprovement, "NEEDS IMPROVEMENT", needsImprovementCount, "< 2.50");
+        
+        outputFile << "\n==========================================================\n";
+        outputFile << "SUMMARY:\n";
+        outputFile << "Total Students: " << totalStudents << "\n";
+        outputFile << "Elite: " << eliteCount << " (" << fixed << setprecision(1) 
+                  << (eliteCount * 100.0 / totalStudents) << "%)\n";
+        outputFile << "High Achievers: " << highCount << " (" << fixed << setprecision(1) 
+                  << (highCount * 100.0 / totalStudents) << "%)\n";
+        outputFile << "Good Standing: " << goodCount << " (" << fixed << setprecision(1) 
+                  << (goodCount * 100.0 / totalStudents) << "%)\n";
+        outputFile << "Satisfactory: " << satisfactoryCount << " (" << fixed << setprecision(1) 
+                  << (satisfactoryCount * 100.0 / totalStudents) << "%)\n";
+        outputFile << "Needs Improvement: " << needsImprovementCount << " (" << fixed << setprecision(1) 
+                  << (needsImprovementCount * 100.0 / totalStudents) << "%)\n";
+        outputFile << "==========================================================\n";
+        
+        outputFile.close();
+        
+        removeEntireList(eliteStudents);
+        removeEntireList(highAchievers);
+        removeEntireList(goodStanding);
+        removeEntireList(satisfactory);
+        removeEntireList(needsImprovement);
+        
+        cout << "Created performance tier report: " << fileName << endl;
+    }
+};
+
+int main() {
+    cout << "========================================\n";
+    cout << "   STUDENT PERFORMANCE ANALYZER\n";
+    cout << "========================================\n\n";
+    
+    StudentDatabase studentSystem;
+    
+    cout << "Loading student data...\n";
+    studentSystem.loadStudentData("students_data.txt");
+    
+    int studentCount = studentSystem.getTotalStudents();
+    if (studentCount == 0) {
+        cout << "No data found. Exiting program.\n";
+        return 1;
+    }
+    
+    cout << "\nProcessing " << studentCount << " student records...\n";
+    cout << "----------------------------------------\n";
+    
+    studentSystem.createGPAReport("ranked_by_cgpa.txt");
+    cout << "1. GPA Ranking Report: Complete\n";
+    
+    studentSystem.createYearReport("sorted_by_enrollment.txt");
+    cout << "2. Enrollment Year Report: Complete\n";
+    
+    studentSystem.createDepartmentReport("department_analysis.txt");
+    cout << "3. Department Analysis Report: Complete\n";
+    
+    studentSystem.createTierReport("performance_tiers.txt");
+    cout << "4. Performance Tier Report: Complete\n";
+    
+    cout << "\n========================================\n";
+    cout << "    ALL REPORTS CREATED SUCCESSFULLY!\n";
+    cout << "========================================\n\n";
+    
+    cout << "Generated Reports:\n";
+    cout << "1. ranked_by_cgpa.txt\n";
+    cout << "2. sorted_by_enrollment.txt\n";
+    cout << "3. department_analysis.txt\n";
+    cout << "4. performance_tiers.txt\n\n";
+    
+    cout << "Analysis complete. Check the output files for results.\n";
+    
+    return 0;
+}
